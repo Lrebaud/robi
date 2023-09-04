@@ -164,10 +164,11 @@ def make_selection(df,
         print(f"device is {device}. If you have a GPU, switching to cuda will provide significant speed gains.")
 
     # drop cases where confounders are not defined
-    df = df[df[confounders].isna().sum(axis=1) == 0]
+    if len(confounders) > 0:
+        df = df[df[confounders].isna().sum(axis=1) == 0]
 
     df = normalize_columns(df, candidates + confounders_to_norm)
-    if verbose:
+    if verbose and len(confounders) > 0:
         check_confounders(df, confounders, targets, strata)
 
     # perform the preselection and
