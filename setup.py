@@ -16,7 +16,7 @@ setup(
     author='Louis Rebaud',
     author_email='louis.rebaud@gmail.com',
     license="Apache License 2.0",
-    packages=['icare'],
+    packages=['robi'],
     install_requires=[
         'numpy',
         'pandas',
