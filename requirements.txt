@@ -1,0 +1,10 @@
+seaborn~=0.12.2
+ray~=2.6.3
+tqdm~=4.65.0
+multipy~=0.16
+lifelines~=0.27.7
+numpy~=1.25.2
+pandas~=2.1.0
+matplotlib~=3.7.2
+scipy~=1.11.2
+statsmodels~=0.14.0
