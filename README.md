@@ -14,18 +14,18 @@
     ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
 </p>
 
-## Installation
+## :rocket: Installation 
 
 ```shell
 pip install robi
 ```
 
-Although [PyTorch](https://pytorch.org/get-started/locally/) is not required to use the package, ROBI runs much faster
+:zap: Although [PyTorch](https://pytorch.org/get-started/locally/) is not required to use the package, ROBI runs much faster
 with its PyTorch implementation. The speed gain is great on CPU, and much greater on GPU.
 To use the PyTorch implementation, simply install PyTorch, and ROBI will use it automatically.
 To tell ROBI to use the GPU, simply set `device='cuda'` in the `make_selection` function.
 
-## Utilisation
+## :sparkles: Utilisation 
 
 
 #### Basic usage
@@ -128,7 +128,7 @@ selection, scores = robi.make_selection(df,
                                         })
 ```
 
-## Examples
+## :memo: Examples
 You can find example notebooks in the `notebooks` folder of this repository.
 
 radiomic DLBCL
@@ -136,14 +136,14 @@ TCGA
 synthetic data
 
 
-## Pipeline diagram
+## :mag: Pipeline diagram
 
 
-## Author
+## :technologist: Author
 
 Louis Rebaud: [louis.rebaud@gmail.com](mailto:louis.rebaud@gmail.com)
 
 
-## License
+## :page_facing_up: License
 
 This project is licensed under the Apache License 2.0 - see the LICENSE.md file for details
