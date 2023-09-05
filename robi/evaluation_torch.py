@@ -1,6 +1,10 @@
-import torch
 import numpy as np
 import pandas as pd
+
+try:
+    import torch
+except:
+    print('Could not load PyTorch. Consider installing or fixing it for substantial speed gains. Using Numpy instead. ')
 
 def get_comparable_pairs_torch(time, event):
     y = torch.from_numpy(time)
