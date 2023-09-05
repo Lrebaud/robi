@@ -2,16 +2,15 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.7](https://img.shields.io/badge/python-3.7--3.10-blue)](https://www.python.org/downloads/release/python-360/)
 
-<h1>
-  <img align="right" height="250" src="./img/logo.png">
-   <br> ROBI: Robust and Optimized Biomarker Identifier
-</h1>
+# ROBI: Robust and Optimized Biomarker Identifier
 
-ROBI is a selection pipeline that select predictive biomarkers from any set of features.
-The selection if performed with a robust and adjustable control of the number of false positives as well as a
-control for confounders.
-
-ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
+<p>
+  <img align="right" height="130" src="./img/logo.png">
+  ROBI is a selection pipeline that select predictive biomarkers from any set of features.
+  The selection if performed with a robust and adjustable control of the number of false positives as well as a
+  control for confounders.
+  ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
+</p>
 
 ## Installation
 
