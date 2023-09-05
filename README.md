@@ -5,7 +5,7 @@
   <img align="right" height="290" src="./img/logo.png">
 </p>
 
-# ROBI<br>Robust and Optimized Biomarker Identifier
+# ROBI: Robust and Optimized Biomarker Identifier
 
 <p align="justify">
     ROBI is a selection pipeline that select predictive biomarkers from any set of features.
