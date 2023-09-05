@@ -1,18 +1,16 @@
-[![PyPI version](https://badge.fury.io/py/robi.svg)](https://badge.fury.io/py/robi)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python 3.7](https://img.shields.io/badge/python-3.7--3.10-blue)](https://www.python.org/downloads/release/python-360/)
-<p>
-  <img align="right" height="290" src="./img/logo.png">
-</p>
-
 # ROBI: Robust and Optimized Biomarker Identifier
 
 <p align="justify">
+    <img align="right" height="220" src="./img/logo.png">
     ROBI is a selection pipeline that select predictive biomarkers from any set of features.
     The selection if performed with a robust and adjustable control of the number of false positives as well as a
     control for confounders.
     ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
 </p>
+
+[![PyPI version](https://badge.fury.io/py/robi.svg)](https://badge.fury.io/py/robi)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.7](https://img.shields.io/badge/python-3.7--3.10-blue)](https://www.python.org/downloads/release/python-360/)
 
 ## :rocket: Installation 
 
@@ -22,8 +20,8 @@ pip install robi
 
 :zap: Although [PyTorch](https://pytorch.org/get-started/locally/) is not required to use the package, ROBI runs much faster
 with its PyTorch implementation. The speed gain is great on CPU, and much greater on GPU.
-To use the PyTorch implementation, simply install PyTorch, and ROBI will use it automatically.
-To tell ROBI to use the GPU, simply set `device='cuda'` in the `make_selection` function.
+To use the PyTorch implementation, simply install PyTorch (conda is the easiest way), and ROBI will use it automatically.
+To tell ROBI to use the GPU, set `device='cuda'` in the `robi.make_selection` function.
 
 ## :sparkles: Utilisation 
 
@@ -37,11 +35,14 @@ import robi
 
 Then, a pandas dataframe need to be defined were each row is a patient, and each column a feature
 (biomarker, outcome, ...), such as:
+```python
+print(df)
+```
 
-| candidate_1 | candidate_2 | outcome |
-|-------------|-------------|---------|
-| 0           | 100         | 10      |
-| 0.1         | -2          | 25      |
+| outcome | candidate_1 | candidate_2 |
+|---------|-------------|-------------|
+| 10      | 0           | 100         |
+| 25      | 0.1         | -2          |
 
 with `candidate_1` and `candidate_2` the candidate biomarkers that we want to evaluate and `outcome` the target
 (e.g. the feature that we want to be predicted by the selected biomarkers).
@@ -53,11 +54,25 @@ selection, scores = robi.make_selection(df,
                                         targets = 'outcome')
 ```
 
+`robi.make_selection` will plot the following image:
 
-#### Number of false positive control
+<p align="center">
+  <img src="img/selection_plot.png" />
+</p>
 
+The x axis is the degree of permissiveness: how strict is the selection. A low permissiveness means a stricter
+selection, reducing the number of false positives, but at the cost of more false negatives (e.g. missed discoveries).
+On the other hand, a high permissiveness means a less strict selection, increasing the number of discoveries but
+at the cost of more false positives.
+The orange line represent the number of selected candidates. The blue line represent the average number of false
+positives. The blue area is the 95% confidence interval for the number of false positives.
+If the selection is performed on multiple targets, a plot for each target is generated.
 
-![](C:\Users\louis\Documents\work\articles\article_pipeline\robi\img\selection_plot.png)
+`robi.make_selection` will return two variables:
+ * `selection`: contains the results of the selection for multiple level of false discovery rate.
+ * `scores`: contains the results of the evaluation of the prognostic value of each candidate.
+
+`selection` will look like this:
 
 
 #### Control for confounders
@@ -127,6 +142,8 @@ selection, scores = robi.make_selection(df,
                                             'censored_target': ('censored_target_time', 'censored_target_happened')
                                         })
 ```
+
+### other parameters
 
 ## :memo: Examples
 You can find example notebooks in the `notebooks` folder of this repository.
