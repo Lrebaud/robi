@@ -5,7 +5,7 @@
 # ROBI: Robust and Optimized Biomarker Identifier
 
 <p>
-  <img align="right" height="133" src="./img/logo.png">
+  <img align="right" height="170" src="./img/logo.png">
   ROBI is a selection pipeline that select predictive biomarkers from any set of features.
   The selection if performed with a robust and adjustable control of the number of false positives as well as a
   control for confounders.
