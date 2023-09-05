@@ -26,7 +26,7 @@ To tell ROBI to use the GPU, set `device='cuda'` in the `robi.make_selection` fu
 ## :sparkles: Utilisation 
 
 
-#### Basic usage
+### Basic usage
 
 First, ROBI must be imported:
 ```python
@@ -74,11 +74,49 @@ If the selection is performed on multiple targets, a plot for each target is gen
 
 `selection` will look like this:
 
+| target  | permissiveness | n_selected | n_FP      | P_only_FP | selected                       |
+|---------|----------------|------------|-----------|-----------|--------------------------------|
+| outcome | 0.01           | 1          | 0.1 (0-0) | 1e-3      | ['candidate_1']                |
+| outcome | 0.02           | 2          | 0.5 (0-2) | 1e-2      | ['candidate_1', 'candidate_2'] |
+| ...     | ...            | ...        | ...       | ...       | ...                            |
 
-#### Control for confounders
+with:
+ * `target`: on which target was the selection performed
+ * `permissiveness`: degree of permissiveness for this selection
+ * `n_selected`: number of selected candidates
+ * `n_FP`: average number of false positives and 95% confidence interval in parentheses
+ * `P_only_FP`: probability of having only false positives selected
+ * `selected`: list of the selected candidates for the corresponding permissiveness
 
-If confounders are in the dataset, they can be listed in the `confounders` parameter. ROBI will discard any candidate
-that is sensitive to these confounders, making sure that any selected biomarker is relevant and worth studying further.
+
+`scores` will look like this:
+
+| candidate   | target  | C-index | p-value |
+|-------------|---------|---------|---------|
+| candidate_1 | outcome | 0.65    | 1e-3    |
+| candidate_2 | outcome | 0.55    | 2e-2    |
+| ...         | ...     | ...     | ...     |
+
+with:
+ * `candidate`: candidate to whom belong the row
+ * `target`: on which target was the C-index computed
+ * `C-index`: C-index of the corresponding candidate for the corresponding target 
+ * `p-value`: p-value of the corresponding C-index
+
+### :rotating_light: :warning: the C-index is anti-concordant with the targets :warning: :rotating_light:
+ * a feature with a C-index > 0.5 is **negatively correlated** with the target. The **higher** the feature 
+value, the **lower** the target.
+ * a feature with a C-index < 0.5, is **positively correlated** with the target. The **higher** the feature 
+value, the **higher** the target.
+
+So if the target is the Overall Survival or any other survival metric, a C-index > 0.5 means that the
+corresponding feature is positively correlated to the risk.
+
+### Control for confounders
+
+If confounders are presents in the dataset, they can be listed in the `confounders` parameter. ROBI will discard any
+candidate that is sensitive to these confounders, making sure that any selected biomarker is relevant and worth
+studying further.
 ```python
 selection, scores = robi.make_selection(df,
                                         candidates,
@@ -88,7 +126,7 @@ selection, scores = robi.make_selection(df,
 This way, any candidate whose hazard ratio changes by more than 10% when confounders are introduced in a Cox model,
 will be discarded.
 
-#### Control for known biomarkers
+### Control for known biomarkers
 
 If some biomarkers are already known and used, we can avoid selecting candidates that are simply replicating this known
 information. For instance, if we know that tumor volume affect the outcome of patients, we can specify
@@ -103,7 +141,7 @@ selection, scores = robi.make_selection(df,
 This way, any candidate that is simply a proxy of the tumor volume will be discarded. Multiple known biomarkers can be
 listed. Collinearity and multicollinearity will be tested.
 
-#### Censored target
+### Censored target
 
 ROBI can handle censored targets (e.g. we know that a patient was alive until a certain date, but then we don't if
 he died or when). For instance, to use the Overall Survival (OS), one must specify:
@@ -117,7 +155,7 @@ selection, scores = robi.make_selection(df,
 with `OS_time` being the time between diagnosis and death or end of study, and `OS_happened` a boolean feature 
 stating if a patient died (True or 1) or not (False or 0) during the study.
 
-#### Multiple targets
+### Multiple targets
 
 ROBI can perform the biomarker selection for multiple targets at the same time. For instance, the candidates could be
 evaluated for OS and Progression Free Survival (PFS). Simply pass them to the `targets` parameter as a dictionary:
