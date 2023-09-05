@@ -1,10 +1,11 @@
-seaborn
-ray
-tqdm
-multipy
 lifelines
+matplotlib
+multipy
 numpy
 pandas
-matplotlib
+ray
+scikit-learn
 scipy
+seaborn
 statsmodels
+tqdm

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robi"
+description = "ROBI: Robust and Optimized Biomarker Identifier"
+version = "0.0.2"
+readme = "README.md"
+license = {text = "Apache License 2.0"}
+authors = [
+  {name = "Louis Rebaud", email = "louis.rebaud@gmail.com"},
+]
+requires-python = ">=3.7"
+dependencies = [
+    'numpy',
+    'pandas',
+    'seaborn',
+    'scikit-learn',
+    'lifelines',
+    'tqdm',
+    'statsmodels',
+    'ray',
+    'multipy'
+]
+classifiers = [
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Science/Research",
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+]
+
+[project.optional-dependencies]
+test-core = ["pytest", "pytest-cov"]
+test = [
+  "pytest",
+  "pytest-cov",
+  "torch",
+]
+
+[tool.setuptools]
+packages = [
+  "robi",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "robi.__version__"}
