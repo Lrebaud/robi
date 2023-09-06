@@ -10,10 +10,10 @@ def compute_pvals(scores, scores_random, device):
     return compute_pvals_npy(scores, scores_random)
 
 
-def compute_univariate_score(df_random, random_cols, targets, device):
+def compute_univariate_score(df, random_cols, targets, device):
     if torch_installed():
-        return compute_univariate_score_torch(df_random, random_cols, targets, device)
-    return compute_univariate_score_npy(df_random, random_cols, targets)
+        return compute_univariate_score_torch(df, random_cols, targets, device)
+    return compute_univariate_score_npy(df, random_cols, targets)
 
 
 def score_of_random(df, targets, device, n_random):

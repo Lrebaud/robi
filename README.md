@@ -1,16 +1,25 @@
 # ROBI: Robust and Optimized Biomarker Identifier
 
 <p align="justify">
-    <img align="right" width="350px" src="./img/logo.png">
+    <img align="right" width="340px" src="./img/logo.png">
     ROBI is a selection pipeline that select predictive biomarkers from any set of features.
     The selection if performed with a robust and adjustable control of the number of false positives as well as a
     control for confounders.
     ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
 </p>
 
+
+### Keys features:
+ * :balance_scale: Reliable predicitive power estimation through permutation tests instead of fixed thresholds
+ * :shield: Robust control of the number of false positive
+ * :heavy_plus_sign: Increased discovery rate via optimised feature selection
+ * :tada: Only select new information via control for confounders and correlation with known biomarkers
+
 [![PyPI version](https://badge.fury.io/py/robi.svg)](https://badge.fury.io/py/robi)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.7](https://img.shields.io/badge/python-3.7--3.10-blue)](https://www.python.org/downloads/release/python-360/)
+
+
 
 ## :rocket: Installation 
 
@@ -91,7 +100,7 @@ with:
 
 `scores` will look like this:
 
-| candidate   | target  | C-index | p-value |
+| candidate   | target  | C_index | p_value |
 |-------------|---------|---------|---------|
 | candidate_1 | outcome | 0.65    | 1e-3    |
 | candidate_2 | outcome | 0.55    | 2e-2    |

@@ -11,29 +11,12 @@ from robi.utils import *
 
 sns.set_theme(style="whitegrid")
 
-def get_best_candidates_per_cluster(scores, clusters):
-    representative = []
-    for cluster in clusters:
-        if len(cluster) > 1:
-            max_pvals = scores.loc[cluster]
-            best_idx = np.argmin(max_pvals.values)
-            representative.append(max_pvals.index[best_idx])
-        else:
-            representative.append(cluster[0])
-    return representative
-
-
-def fdr_control_on_target(scores, clusters, permissiveness, target):
-    candidates = get_best_candidates_per_cluster(scores[target + '_pval'], clusters)
-    target_scores = scores.loc[candidates]
-    target_scores['pass_' + target] = tst(target_scores[target + '_pval'].values, q=permissiveness)
-    return target_scores
 
 
 def get_permuted_scores(df, candidates, scores_random, targets, device, n_permut, verbose):
     cols_to_permut = sum([list(targets[x]) for x in targets], [])
     all_pscores = []
-    for it in tqdm(range(n_permut),
+    for _ in tqdm(range(n_permut),
                    desc='Computing scores of permutations',
                    bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}',
                    disable=not verbose):
@@ -44,117 +27,94 @@ def get_permuted_scores(df, candidates, scores_random, targets, device, n_permut
     return all_pscores
 
 
+def get_best_candidates_per_cluster(scores, clusters):
+    representative = []
+    for cluster in clusters:
+        if len(cluster) > 1:
+            max_pvals = scores.loc[cluster]
+            best_idx = np.argmin(max_pvals.values)
+            representative.append(max_pvals.index[best_idx])
+        else:
+            representative.append(cluster[0])
+    return np.array(representative)
+
+
+def get_sel_by_permissiveness(scores, corr_clusters, targets):
+    all_n_sel = []
+
+    for target in targets:
+        mask_target = scores['target'] == target
+        pvals_target = scores.loc[mask_target, 'p_value']
+
+        candidates = get_best_candidates_per_cluster(pvals_target, corr_clusters)
+        pvals_target = pvals_target.loc[candidates].values
+
+        for permissiveness in np.arange(0.01, 1.01, 0.01).round(2):
+            selected = candidates[tst(pvals_target, q=permissiveness)]
+            all_n_sel.append({
+                'permissiveness': permissiveness,
+                'target': target,
+                'n_selected': len(selected),
+                'selected': selected,
+            })
+    return pd.DataFrame(all_n_sel).set_index(['target', 'permissiveness'])
+
 @ray.remote
-def get_nfp_all_permissiveness_worker(pscores, chunk, corr_clusters, permissivenesses, target):
+def get_nfp_by_permissiveness_worker(pscores, chunk, corr_clusters, targets):
     all_res = []
     for x in chunk:
         s = pscores[x]
-        sel_candidates = get_best_candidates_per_cluster(s[target + '_pval'], corr_clusters)
-        target_scores = s.loc[sel_candidates]
-        all_pass = {}
-        for p in permissivenesses:
-            all_res.append({
-                'permissiveness': p,
-                'n_fp_' + target: tst(target_scores[target + '_pval'].values, q=p).sum()
-            })
+        sel = get_sel_by_permissiveness(s, corr_clusters, targets)
+        sel = sel.reset_index()
+        sel = sel.drop(columns=['selected'])
+        sel = sel.rename(columns={'n_selected': 'n_FP'})
+        all_res.append(sel)
     return all_res
 
 
-def get_nfp_all_permissiveness(perm_values, target, pscores, corr_clusters, n_workers):
+def get_nfp_by_permissiveness(pscores, corr_clusters, targets, n_workers):
     n_permut = len(pscores)
     chunks = np.array_split(np.arange(n_permut), n_workers)
     pscores_id = ray.put(pscores)
     corr_clusters_id = ray.put(corr_clusters)
-    workers = [get_nfp_all_permissiveness_worker.remote(pscores_id, x,
-                                                        corr_clusters_id, perm_values, target) for x in chunks]
+    workers = [get_nfp_by_permissiveness_worker.remote(pscores_id, x,
+                                                       corr_clusters_id, targets) for x in chunks]
     res = sum(ray.get(workers), [])
-    res = pd.DataFrame(res)
-    res = res.set_index('permissiveness')
+    res = pd.concat(res).reset_index(drop=True)
+    res = res.set_index(['target', 'permissiveness'])
     return res
 
 
-def fdr_control(scores, clusters, permissiveness, targets):
-    all_target_scores = {}
+def get_permissiveness_effect(scores, pscores, corr_clusters, targets, n_workers, verbose):
+    list_targets = list(targets.keys())
+    sel_by_permissiveness = get_sel_by_permissiveness(scores, corr_clusters, list_targets)
+    nfp_by_permissiveness = get_nfp_by_permissiveness(pscores, corr_clusters, list_targets, n_workers)
+    return sel_by_permissiveness, nfp_by_permissiveness
+
+def plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets):
+
     for target in targets:
-        all_target_scores[target] = fdr_control_on_target(scores, clusters, permissiveness, target)
-    return all_target_scores
 
-
-def get_nsel_by_permissiveness(scores, corr_clusters):
-    all_n_sel = []
-    targets = np.unique([x.split('_pval')[0] for x in scores.columns]).tolist()
-    for permissiveness in np.arange(0.01, 1.01, 0.01).round(2):
-        sel = fdr_control(scores, corr_clusters, permissiveness, targets=targets)
-        r = {'permissiveness': permissiveness}
-        for target in targets:
-            r['sel_' + target] = sel[target][sel[target]['pass_' + target]].index.tolist()
-            r['n_sel_' + target] = sel[target]['pass_' + target].sum()
-        all_n_sel.append(r)
-    return pd.DataFrame(all_n_sel).set_index('permissiveness')
-
-
-def plot_permissiveness_effect(scores, pscores, corr_clusters, targets, n_workers, verbose):
-    nsel_by_permissiveness = get_nsel_by_permissiveness(scores, corr_clusters)
-    plotid = 0
-    if verbose:
-        plt.figure(figsize=(12, 5), layout='constrained')
-    nfp_all_permissiveness_by_target = {}
-    for target in targets:
-        if verbose:
-            plotid += 1
-            plt.subplot(1, len(list(targets.keys())), plotid)
-        nfp_all_permissiveness = get_nfp_all_permissiveness(nsel_by_permissiveness.index, target,
-                                                            pscores, corr_clusters, n_workers)
-        nfp_all_permissiveness_by_target[target] = nfp_all_permissiveness
-        if verbose:
-            sns.lineplot(nsel_by_permissiveness, x='permissiveness', y='n_sel_' + target,
-                         label='Number of\nselected candidates', color='#ec6602')
-            sns.lineplot(nfp_all_permissiveness, x='permissiveness', y='n_fp_' + target,
-                         label='Number of\nfalse positives', errorbar=('pi', 95), color='#009999')
-            plt.title(target)
-            plt.xlabel('Requested False Discovery Rate (TST\'s FDR)')
-            plt.ylabel('')
-            if plotid == 1:
-                plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-            else:
-                plt.legend('', frameon=False)
-    if verbose:
+        sns.lineplot(sel_by_permissiveness.loc[target], x='permissiveness', y='n_selected',
+                     label='Number of\nselected candidates', color='#ec6602')
+        sns.lineplot(nfp_by_permissiveness.loc[target], x='permissiveness', y='n_FP',
+                     label='Number of\nfalse positives', errorbar=('pi', 95), color='#009999')
+        plt.title(target)
+        plt.ylabel('')
+        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.show()
-    return nsel_by_permissiveness, nfp_all_permissiveness_by_target
-
-
-def get_selection_results(n_fp, targets, nsel_by_permissiveness, nfp_all_permissiveness):
-    all_rows = []
-    for target in targets:
-        row = {}
-        row['target'] = target
-        mean_nfp = nfp_all_permissiveness[target].groupby('permissiveness').mean()
-        row['permissiveness'] = mean_nfp[mean_nfp['n_fp_' + target] < n_fp].index[-1]
-
-        row['selection'] = nsel_by_permissiveness.loc[row['permissiveness'], 'sel_' + target]
-        row['n_selected'] = nsel_by_permissiveness.loc[row['permissiveness'], 'n_sel_' + target]
-
-        sel_fp = nfp_all_permissiveness[target].loc[row['permissiveness'], 'n_fp_' + target].values
-        row['prob_only_FP'] = ((sel_fp >= row['n_selected']).sum() + 1) / (len(sel_fp) + 1)
-        row['n_FP_(CI)'] = '%.2f' % np.mean(sel_fp) + ' (%.2f' % np.percentile(sel_fp, 2.5) + '-%.2f)' % np.percentile(
-            sel_fp, 97.5)
-        all_rows.append(row)
-    all_rows = pd.DataFrame(all_rows)
-    all_rows = all_rows.set_index('target')
-    return all_rows.T
-
 
 def make_selection(df,
                    candidates,
                    targets,
-                   confounders=[],
+                   confounders=None,
+                   known=None,
                    strata=None,
-                   confound_check_corr=[],
-                   max_corr=0.5,
-                   n_workers=1,
-                   n_random=100,
-                   n_permut_nfp=10,
+                   max_corr_cluster=0.5,
+                   n_uni_pval=100,
+                   n_fp_estimate=10,
                    verbose=True,
+                   n_workers=1,
                    device="cpu"):
     if verbose:
         print('Selection started...')
@@ -162,41 +122,69 @@ def make_selection(df,
     if torch_installed(verbose=True) and device != 'cuda':
         print(f"device is {device}. If you have a GPU, switching to cuda will provide significant speed gains.")
 
+    if confounders is None:
+        confounders = []
+    if known is None:
+        known = []
+    if isinstance(strata, list):
+        if len(strata) == 0:
+            strata = None
+    confounders = list(set(confounders+known))
+
+    if isinstance(candidates, np.ndarray):
+        candidates = candidates.tolist()
+
+    df, targets = format_targets(df, targets)
+
     # drop cases where confounders are not defined
     if len(confounders) > 0:
         df = df[df[confounders].isna().sum(axis=1) == 0]
 
-    df = normalize_columns(df, candidates + confounders_to_norm)
+    df = normalize_columns(df, candidates + confounders)
     if verbose and len(confounders) > 0:
         check_confounders(df, confounders, targets, strata)
 
-    # perform the preselection and
-    sel_candidates, corr_clusters, candidates_correlations = primary_selection(df,
-                                                                               candidates,
-                                                                               confounders,
-                                                                               strata,
-                                                                               confound_check_corr,
-                                                                               targets,
-                                                                               max_corr,
-                                                                               verbose,
-                                                                               n_workers)
+    # perform the preselection
+    candidates, corr_clusters, candidates_correlations = primary_selection(df,
+                                                                           candidates,
+                                                                           confounders,
+                                                                           strata,
+                                                                           known,
+                                                                           targets,
+                                                                           max_corr_cluster,
+                                                                           verbose,
+                                                                           n_workers)
 
-    scores_random = score_of_random(df, targets, device, n_random)
-    scores = univariate_evaluation(df, sel_candidates, targets, device, scores_random)
+    scores_random = score_of_random(df, targets, device, n_uni_pval)
+    scores = univariate_evaluation(df, candidates, targets, device, scores_random)
     if verbose:
-        check_n_random(scores, targets, n_random)
+        check_n_random(scores, targets, n_uni_pval)
 
-    pscores = get_permuted_scores(df, sel_candidates, scores_random, targets, device, n_permut_nfp, verbose)
+    pscores = get_permuted_scores(df, candidates, scores_random, targets, device, n_fp_estimate, verbose)
 
-    nsel_by_permissiveness, nfp_all_permissiveness = plot_permissiveness_effect(scores, pscores,
-                                                                                corr_clusters, targets,
-                                                                                n_workers, verbose)
+    sel_by_permissiveness, nfp_by_permissiveness = get_permissiveness_effect(scores, pscores,
+                                                                             corr_clusters, targets,
+                                                                             n_workers, verbose)
+    if verbose:
+        plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets)
 
-    for target in targets:
-        mean_nfp = nfp_all_permissiveness[target].groupby('permissiveness').mean()
-        ci_nfp_low = nfp_all_permissiveness[target].groupby('permissiveness').quantile(0.025).round(2).astype('str')
-        ci_nfp_high = nfp_all_permissiveness[target].groupby('permissiveness').quantile(0.975).round(2).astype('str')
-        mean_nfp = mean_nfp.round(1).astype('str') + ' (' + ci_nfp_low + '-' + ci_nfp_high + ')'
-        nsel_by_permissiveness = pd.concat([nsel_by_permissiveness, mean_nfp], axis=1)
 
-    return nsel_by_permissiveness, scores
+    nfp_by_permissiveness['n_selected'] = sel_by_permissiveness.loc[nfp_by_permissiveness.index, 'n_selected']
+    nfp_by_permissiveness['P_only_FP'] = nfp_by_permissiveness['n_FP'] >= nfp_by_permissiveness['n_selected']
+
+    nfp_by_permissiveness_g = nfp_by_permissiveness.groupby(['target', 'permissiveness'])
+    nfp_mean = nfp_by_permissiveness_g['n_FP'].mean().round(1)
+    nfp_cil = nfp_by_permissiveness_g['n_FP'].quantile(0.025).round(2)
+    nfp_cih = nfp_by_permissiveness_g['n_FP'].quantile(0.975).round(2)
+    nfp_mean = nfp_mean.round(1).astype('str') + ' (' + nfp_cil.astype('str') + '-' + nfp_cih.astype('str') + ')'
+    p_only_FP = nfp_by_permissiveness_g['P_only_FP'].mean()
+
+    sel_by_permissiveness = pd.concat([sel_by_permissiveness, nfp_mean, p_only_FP], axis=1)
+
+    sel_by_permissiveness = sel_by_permissiveness[['n_selected', 'n_FP', 'P_only_FP', 'selected']]
+
+    scores.index.name = 'candidate'
+    scores = scores.reset_index()
+    scores = scores.set_index(['candidate', 'target'])
+
+    return sel_by_permissiveness, scores

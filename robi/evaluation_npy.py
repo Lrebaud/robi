@@ -39,7 +39,8 @@ def compute_univariate_score_of_npy(df, target_columns, biom_values):
         # compute feature's signs
         features_cindex_by_pair = cindex_by_pair_npy(biom_values_high, biom_values_low)
         features_cindex = 1.-features_cindex_by_pair.mean(axis=0)
-        univ_scores[target] = features_cindex
+        univ_scores['C_index'] = features_cindex
+        univ_scores['target'] = target
     return univ_scores
 
 

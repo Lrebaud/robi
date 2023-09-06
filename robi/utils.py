@@ -1,5 +1,9 @@
 from lifelines import CoxPHFitter
 from lifelines.statistics import proportional_hazard_test
+import scipy.optimize as opt
+from sklearn.datasets import make_regression
+import numpy as np
+import pandas as pd
 
 
 def check_n_random(scores, targets, n_random):
@@ -11,7 +15,7 @@ def check_n_random(scores, targets, n_random):
     """
 
     # Calculate the minimum p-value across all targets
-    min_pval = scores[[f"{t}_pval" for t in targets]].min().min()
+    min_pval = scores['p_value'].min()
     n_sup = int(min_pval * n_random)
 
     # Check if the number of superior random features is less than 200
@@ -58,7 +62,7 @@ def check_proportional_hazard_for_target(df, target, targets, confounders, strat
     for confounder, row in results.summary.iterrows():
         if row['p'] < 0.05:
             print(f"{confounder} violates proportional hazard assumptions for {target} (p<{row['p']:.2f}).",
-                  "Consider adding to the strata list.")
+                  f"Consider adding {confounder} to the strata list.")
             return False
 
     return True
@@ -104,5 +108,114 @@ def torch_installed(verbose=False):
         return True
     except:
         if verbose:
-            print('Could not load PyTorch. Consider installing or fixing it for substantial speed gains. Using Numpy instead. ')
+            print(
+                'Could not load PyTorch. Consider installing or fixing it for substantial speed gains. Using Numpy instead. ')
         return False
+
+
+def format_targets(df, targets):
+    """
+    :param df:
+    :param targets: possible formats
+        't1'
+        ['t1']
+        ['t1', 't2]
+        {
+            't1': ('time', 'event'),
+        }
+        {
+            't1': ('time1', 'event1'),
+            't2': ('time2', 'event2'),
+        }
+        {
+            't1': ('time1'),
+            't2': ('time2', 'event2'),
+        }
+        {
+            't1': 'time1',
+            't2': ('time2', 'event2'),
+        }
+    :return:
+    """
+    df = df.copy()
+    invalid = False
+
+    if isinstance(targets, str):
+        df['events'] = True
+        targets = {
+            targets: (targets, 'events')
+        }
+
+    if isinstance(targets, list):
+        new_targets = {}
+        for t in targets:
+            df[t + '_events'] = True
+            new_targets[t] = (t, t + '_events')
+        targets = new_targets
+
+    if isinstance(targets, dict):
+        for t in targets:
+            if isinstance(targets[t], str):
+                df[t + '_events'] = True
+                targets[t] = (targets[t], t + '_events')
+            elif isinstance(targets[t], tuple) or isinstance(targets[t], list):
+                if len(targets[t]) != 2:
+                    if len(targets[t]) == 1:
+                        df[t + '_events'] = True
+                        targets[t] = (targets[t], t + '_events')
+                    else:
+                        invalid = True
+            else:
+                invalid = True
+
+    if invalid:
+        raise ValueError('Invalid target format. See the README for examples.')
+
+    return df, targets
+
+
+def new_synthetic_dataset(n_samples, censoring, nb_features, n_informative, effective_rank, noise):
+    X, Y, coef = make_regression(n_samples=n_samples,
+                                 n_features=nb_features,
+                                 n_informative=n_informative,
+                                 effective_rank=effective_rank,
+                                 noise=noise,
+                                 coef=True)
+
+    Y += abs(np.min(Y))
+
+    def get_observed_time(x):
+        rnd_cens = np.random.RandomState(0)
+        # draw censoring times
+        time_censor = rnd_cens.uniform(high=x, size=n_samples)
+        event = Y < time_censor
+        time = np.where(event, Y, time_censor)
+        return event, time
+
+    def censoring_amount(x):
+        event, _ = get_observed_time(x)
+        cens = 1.0 - event.sum() / event.shape[0]
+        return (cens - censoring) ** 2
+
+    # search for upper limit to obtain the desired censoring amount
+    res = opt.minimize_scalar(censoring_amount,
+                              method="bounded",
+                              bounds=(0, Y.max()))
+
+    # compute observed time
+    event, time = get_observed_time(res.x)
+
+    # upper time limit such that the probability
+    # of being censored is non-zero for `t > tau`
+    tau = time[event].max()
+    mask = time < tau
+    X = X[mask]
+    Y = Y[mask]
+    event = event[mask]
+
+    df = pd.DataFrame(data=X)
+    df['time'] = Y
+    df['event'] = event
+    df.columns = df.columns.values.astype(str)
+
+    return df, coef
