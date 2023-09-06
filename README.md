@@ -14,11 +14,13 @@
 
 
 ### Keys features:
- * :shield: Robust control of the number of false positive
- * :heavy_plus_sign: Increased discovery rate via optimised feature selection
- * :balance_scale: Reliable predictive power estimation through permutation tests instead of fixed thresholds
- * :tada: Only select new information via control for confounders and correlation with known biomarkers
- * :zap: Fast parallelized implementation that can leverage both CPU and GPU for extensive tests
+ * :shield: Robust control of the number of false positives by passing permuted datasets through the selection pipeline
+thousands of times (the more, the better). The proportion of false positive can be adjusted.
+ * :heavy_plus_sign: Increased discovery rate via optimised feature selection.
+ * :balance_scale: Reliable predictive power estimation through permutation tests instead of fixed thresholds.
+ * :tada: Only select new information via control for confounders and correlation with known biomarkers.
+ * :zap: Fast parallelized implementation that can leverage both CPU and GPU for extensive tests: you can easily
+evaluate tens of thousands of potential biomarkers with millions of permutations in a few minutes.
 
 
 ## :rocket: Installation 
