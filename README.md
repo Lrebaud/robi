@@ -8,16 +8,16 @@
     ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
 </p>
 
-
-### Keys features:
- * :balance_scale: Reliable predicitive power estimation through permutation tests instead of fixed thresholds
- * :shield: Robust control of the number of false positive
- * :heavy_plus_sign: Increased discovery rate via optimised feature selection
- * :tada: Only select new information via control for confounders and correlation with known biomarkers
-
 [![PyPI version](https://badge.fury.io/py/robi.svg)](https://badge.fury.io/py/robi)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.7](https://img.shields.io/badge/python-3.7--3.10-blue)](https://www.python.org/downloads/release/python-360/)
+
+
+### Keys features:
+ * :shield: Robust control of the number of false positive
+ * :heavy_plus_sign: Increased discovery rate via optimised feature selection
+ * :balance_scale: Reliable predicitive power estimation through permutation tests instead of fixed thresholds
+ * :tada: Only select new information via control for confounders and correlation with known biomarkers
 
 
 
