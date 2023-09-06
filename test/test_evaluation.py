@@ -26,13 +26,13 @@ def test_evaluation():
     ref_cindex = np.array(ref_cindex)
 
     scores_npy = compute_univariate_score_npy(df, random_cols, targets)
-    assert np.allclose(ref_cindex, scores_npy['PFS'].values, atol=1e-3)
+    assert np.allclose(ref_cindex, scores_npy['C_index'].values, atol=1e-3)
 
     scores_torch = compute_univariate_score_torch(df, random_cols, targets, device='cuda')
-    assert np.allclose(ref_cindex, scores_torch['PFS'].values, atol=1e-3)
+    assert np.allclose(ref_cindex, scores_torch['C_index'].values, atol=1e-3)
 
     scores_random = score_of_random(df, targets, 'cuda', 1000)
     pval_npy = compute_pvals_npy(scores_npy, scores_random)
     pval_torch = compute_pvals_torch(scores_npy, scores_random, 'cuda')
 
-    assert np.allclose(pval_npy['PFS_pval'].values, pval_torch['PFS_pval'].values, atol=1e-3)
+    assert np.allclose(pval_npy['p_value'].values, pval_torch['p_value'].values, atol=1e-3)

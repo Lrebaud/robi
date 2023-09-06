@@ -27,8 +27,8 @@ def cindex_by_pair_npy(v_high, v_low):
     return (eval_comparable+(eval_non_comparable*0.5))
 
 
-def compute_univariate_score_of_npy(df, target_columns, biom_values):
-    univ_scores = pd.DataFrame()
+def compute_univariate_score_of_npy(df, target_columns, biom_values, chunk):
+    univ_scores = []
     for target in target_columns:
         # get comparable train pairs values
         pairs = get_comparable_pairs_npy(df[target_columns[target][0]].values,
@@ -39,9 +39,11 @@ def compute_univariate_score_of_npy(df, target_columns, biom_values):
         # compute feature's signs
         features_cindex_by_pair = cindex_by_pair_npy(biom_values_high, biom_values_low)
         features_cindex = 1.-features_cindex_by_pair.mean(axis=0)
-        univ_scores['C_index'] = features_cindex
-        univ_scores['target'] = target
-    return univ_scores
+        univ_scores_target = pd.DataFrame(index=chunk)
+        univ_scores_target['C_index'] = features_cindex
+        univ_scores_target['target'] = target
+        univ_scores.append(univ_scores_target)
+    return pd.concat(univ_scores)
 
 
 def compute_univariate_score_npy(df, candidates, target_columns):
@@ -55,8 +57,7 @@ def compute_univariate_score_npy(df, candidates, target_columns):
     all_univ_scores = []
     for chunk in chunks:
         biom_values = df[chunk].values
-        univ_scores = compute_univariate_score_of_npy(df, target_columns, biom_values)
-        univ_scores.index = chunk
+        univ_scores = compute_univariate_score_of_npy(df, target_columns, biom_values, chunk)
         all_univ_scores.append(univ_scores)
     return pd.concat(all_univ_scores)
 
@@ -81,9 +82,11 @@ def compute_pvals_target_npy(scores, random_scores):
     all_pvals = np.concatenate(all_pvals)
     return all_pvals
 
-
 def compute_pvals_npy(scores, random_scores):
-    scores = scores.copy()
-    for target in scores.columns:
-        scores[target+'_pval'] = compute_pvals_target_npy(scores[target].values, random_scores[target].values)
+    for target in scores['target'].unique():
+        mask_target = scores['target'] == target
+        random_scores_target = random_scores[random_scores['target'] == target]
+
+        scores.loc[mask_target, 'p_value'] = compute_pvals_target_npy(scores.loc[mask_target, 'C_index'].values,
+                                                                      random_scores_target['C_index'].values)
     return scores
