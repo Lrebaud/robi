@@ -9,42 +9,30 @@ from joblib import Parallel, delayed
 
 sns.set_theme(style="whitegrid")
 
-
-def get_permuted_scores(df, candidates, scores_random, targets, device, n_permut, verbose):
-    cols_to_permut = sum([list(targets[x]) for x in targets], [])
-    all_pscores = []
-    for _ in tqdm(range(n_permut),
-                   desc='Computing scores of permutations',
-                   bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}',
-                   disable=not verbose):
-        dfp = df.copy()
-        dfp.loc[dfp.index, cols_to_permut] = dfp.loc[np.random.permutation(dfp.index), cols_to_permut].values
-        pscores = univariate_evaluation(dfp, candidates, targets, device, scores_random)
-        all_pscores.append(pscores)
-    return all_pscores
+import time
+import robi
+import torch
 
 
 def get_best_candidates_per_cluster(scores, clusters):
     representative = []
     for cluster in clusters:
         if len(cluster) > 1:
-            max_pvals = scores.loc[cluster]
-            best_idx = np.argmin(max_pvals.values)
-            representative.append(max_pvals.index[best_idx])
+            best_idx = np.argmin(scores[cluster])
+            representative.append(cluster[best_idx])
         else:
             representative.append(cluster[0])
     return np.array(representative)
 
 
-def get_sel_by_permissiveness(scores, corr_clusters, targets):
+def get_sel_by_permissiveness(pvals, corr_clusters, targets):
     all_n_sel = []
 
     for target in targets:
-        mask_target = scores['target'] == target
-        pvals_target = scores.loc[mask_target, 'p_value']
+        pvals_target = pvals[target]
 
         candidates = get_best_candidates_per_cluster(pvals_target, corr_clusters)
-        pvals_target = pvals_target.loc[candidates].values
+        pvals_target = pvals_target[candidates]
 
         for permissiveness in np.arange(0.01, 1.01, 0.01).round(2):
             selected = candidates[tst(pvals_target, q=permissiveness)]
@@ -57,8 +45,10 @@ def get_sel_by_permissiveness(scores, corr_clusters, targets):
     return pd.DataFrame(all_n_sel).set_index(['target', 'permissiveness'])
 
 
-def get_nfp_by_permissiveness(pscores, corr_clusters, targets, n_jobs):
-    res = Parallel(n_jobs=n_jobs)(delayed(get_sel_by_permissiveness)(s, corr_clusters, targets) for s in pscores)
+def get_nfp_by_permissiveness(pvals_permut, corr_clusters, targets, n_jobs):
+    res = Parallel(n_jobs=n_jobs)(delayed(get_sel_by_permissiveness)
+                                  (s, corr_clusters, targets)
+                                  for s in pvals_permut)
     res = pd.concat(res)
     res = res.reset_index()
     res = res.drop(columns=['selected'])
@@ -67,10 +57,10 @@ def get_nfp_by_permissiveness(pscores, corr_clusters, targets, n_jobs):
     return res
 
 
-def get_permissiveness_effect(scores, pscores, corr_clusters, targets, n_workers, verbose):
+def get_permissiveness_effect(pval, pvals_permut, corr_clusters, targets, n_workers):
     list_targets = list(targets.keys())
-    sel_by_permissiveness = get_sel_by_permissiveness(scores, corr_clusters, list_targets)
-    nfp_by_permissiveness = get_nfp_by_permissiveness(pscores, corr_clusters, list_targets, n_workers)
+    sel_by_permissiveness = get_sel_by_permissiveness(pval, corr_clusters, list_targets)
+    nfp_by_permissiveness = get_nfp_by_permissiveness(pvals_permut, corr_clusters, list_targets, n_workers)
     return sel_by_permissiveness, nfp_by_permissiveness
 
 def plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets):
@@ -101,7 +91,8 @@ def make_selection(df,
     if verbose:
         print('Selection started...')
 
-    if torch_installed(verbose=True) and device != 'cuda':
+    use_torch = torch_installed(verbose=True)
+    if use_torch and device != 'cuda':
         print(f"device is {device}. If you have a GPU, switching to cuda will provide significant speed gains.")
 
     if confounders is None:
@@ -142,19 +133,20 @@ def make_selection(df,
                                                                            verbose,
                                                                            n_jobs)
 
-    scores_random = score_of_random(df, targets, device, n_uni_pval)
-    scores = univariate_evaluation(df, candidates, targets, device, scores_random)
+    scores_random = score_of_random(df, targets, device, n_uni_pval, use_torch)
+    scores, pvals = univariate_evaluation(df, candidates, targets, device, scores_random, use_torch)
+
     if verbose:
-        check_n_random(scores, targets, n_uni_pval)
+        check_n_random(pvals, targets, n_uni_pval)
 
-    pscores = get_permuted_scores(df, candidates, scores_random, targets, device, n_fp_estimate, verbose)
+    pvals_permut = robi.evaluation.get_permuted_scores(df, candidates, scores_random, targets, device, n_fp_estimate, verbose, use_torch)
 
-    sel_by_permissiveness, nfp_by_permissiveness = get_permissiveness_effect(scores, pscores,
+
+    sel_by_permissiveness, nfp_by_permissiveness = get_permissiveness_effect(pvals, pvals_permut,
                                                                              corr_clusters, targets,
-                                                                             n_jobs, verbose)
+                                                                             n_jobs)
     if verbose:
         plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets)
-
 
     nfp_by_permissiveness['n_selected'] = sel_by_permissiveness.loc[nfp_by_permissiveness.index, 'n_selected']
     nfp_by_permissiveness['P_only_FP'] = nfp_by_permissiveness['n_FP'] >= nfp_by_permissiveness['n_selected']
@@ -170,8 +162,34 @@ def make_selection(df,
 
     sel_by_permissiveness = sel_by_permissiveness[['n_selected', 'n_FP', 'P_only_FP', 'selected']]
 
-    scores.index.name = 'candidate'
-    scores = scores.reset_index()
+
+    scores_col = []
+    pval_col = []
+    target_col = []
+    cand_col = []
+    for target in scores:
+        s = scores[target]
+        p = pvals[target]
+        if use_torch:
+            s = s.cpu().numpy()
+            p = p.cpu().numpy()
+        s = s.tolist()
+        p = p.tolist()
+        scores_col += s
+        pval_col += p
+        target_col += [target]*len(s)
+        cand_col += candidates
+
+    scores = pd.DataFrame(data={
+        'candidate': cand_col,
+        'target': target_col,
+        'C_index': scores_col,
+        'p_value': pval_col,
+    })
     scores = scores.set_index(['candidate', 'target'])
+
+    candidates = np.array(candidates)
+    sel_by_permissiveness['selected'] = [candidates[x] for x in sel_by_permissiveness['selected']]
+
 
     return sel_by_permissiveness, scores

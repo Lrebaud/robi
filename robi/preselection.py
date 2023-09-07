@@ -96,7 +96,8 @@ def get_clusters(selected, candidates_correlations, max_corr):
         return [selected]
 
     if max_corr == 1:
-        return [[x] for x in selected]
+        # return [[x] for x in selected]
+        return [[x] for x in np.arange(len(selected))]
 
     # Calculate distances from correlations and convert to a format suitable for linkage
     distances = 1 - candidates_correlations.loc[selected, selected]
@@ -107,14 +108,15 @@ def get_clusters(selected, candidates_correlations, max_corr):
     order = leaves_list(optimal_leaf_ordering(Z, dist_array))
 
     # Order the selected items based on the clustering
-    ordered_sel = np.array(selected)[order].tolist()
+    # ordered_sel = np.array(selected)[order].tolist()
+    ordered_sel = order
 
     # Create clusters based on the correlation threshold
     clusters = []
     current_cluster = [ordered_sel[0]]
 
     for fid in range(1, len(ordered_sel)):
-        corr = candidates_correlations.loc[ordered_sel[fid], ordered_sel[fid - 1]]
+        corr = candidates_correlations.loc[selected[ordered_sel[fid]], selected[ordered_sel[fid - 1]]]
         if corr > max_corr:
             current_cluster.append(ordered_sel[fid])
         else:
