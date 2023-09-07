@@ -1,16 +1,13 @@
-import numpy as np
-import pandas as pd
 from matplotlib import pyplot as plt
-import ray
 from multipy.fdr import tst
 from tqdm import tqdm
 import seaborn as sns
 from robi.evaluation import univariate_evaluation, score_of_random
 from robi.preselection import primary_selection
 from robi.utils import *
+from joblib import Parallel, delayed
 
 sns.set_theme(style="whitegrid")
-
 
 
 def get_permuted_scores(df, candidates, scores_random, targets, device, n_permut, verbose):
@@ -59,28 +56,13 @@ def get_sel_by_permissiveness(scores, corr_clusters, targets):
             })
     return pd.DataFrame(all_n_sel).set_index(['target', 'permissiveness'])
 
-@ray.remote
-def get_nfp_by_permissiveness_worker(pscores, chunk, corr_clusters, targets):
-    all_res = []
-    for x in chunk:
-        s = pscores[x]
-        sel = get_sel_by_permissiveness(s, corr_clusters, targets)
-        sel = sel.reset_index()
-        sel = sel.drop(columns=['selected'])
-        sel = sel.rename(columns={'n_selected': 'n_FP'})
-        all_res.append(sel)
-    return all_res
 
-
-def get_nfp_by_permissiveness(pscores, corr_clusters, targets, n_workers):
-    n_permut = len(pscores)
-    chunks = np.array_split(np.arange(n_permut), n_workers)
-    pscores_id = ray.put(pscores)
-    corr_clusters_id = ray.put(corr_clusters)
-    workers = [get_nfp_by_permissiveness_worker.remote(pscores_id, x,
-                                                       corr_clusters_id, targets) for x in chunks]
-    res = sum(ray.get(workers), [])
-    res = pd.concat(res).reset_index(drop=True)
+def get_nfp_by_permissiveness(pscores, corr_clusters, targets, n_jobs):
+    res = Parallel(n_jobs=n_jobs)(delayed(get_sel_by_permissiveness)(s, corr_clusters, targets) for s in pscores)
+    res = pd.concat(res)
+    res = res.reset_index()
+    res = res.drop(columns=['selected'])
+    res = res.rename(columns={'n_selected': 'n_FP'})
     res = res.set_index(['target', 'permissiveness'])
     return res
 
@@ -110,11 +92,11 @@ def make_selection(df,
                    confounders=None,
                    known=None,
                    strata=None,
-                   max_corr_cluster=0.5,
-                   n_uni_pval=100,
-                   n_fp_estimate=10,
+                   max_corr_cluster=1.,
+                   n_uni_pval=1000,
+                   n_fp_estimate=1000,
                    verbose=True,
-                   n_workers=1,
+                   n_jobs=1,
                    device="cpu"):
     if verbose:
         print('Selection started...')
@@ -153,7 +135,7 @@ def make_selection(df,
                                                                            targets,
                                                                            max_corr_cluster,
                                                                            verbose,
-                                                                           n_workers)
+                                                                           n_jobs)
 
     scores_random = score_of_random(df, targets, device, n_uni_pval)
     scores = univariate_evaluation(df, candidates, targets, device, scores_random)
@@ -164,7 +146,7 @@ def make_selection(df,
 
     sel_by_permissiveness, nfp_by_permissiveness = get_permissiveness_effect(scores, pscores,
                                                                              corr_clusters, targets,
-                                                                             n_workers, verbose)
+                                                                             n_jobs, verbose)
     if verbose:
         plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets)
 

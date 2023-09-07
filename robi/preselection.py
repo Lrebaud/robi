@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
-import ray
 from lifelines import CoxPHFitter
 from lifelines.statistics import proportional_hazard_test
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import scipy.spatial.distance as ssd
 from scipy.cluster.hierarchy import linkage, leaves_list, optimal_leaf_ordering
+from joblib import Parallel, delayed
 
 
 def get_vif(df, cov):
@@ -22,26 +22,12 @@ def get_vif(df, cov):
     return {'vif': max_vif, 'candidate': cov[-1]}
 
 
-@ray.remote
-def get_all_vif_worker(df, candidates, confounders):
-    """
-    Compute VIF for multiple candidates.
-    """
-
-    import warnings
-    warnings.filterwarnings("ignore")
-    return [get_vif(df, confounders + [candidate]) for candidate in candidates]
-
-
-def get_all_vif(df, candidates, confounders, n_workers):
+def get_all_vif(df, candidates, confounders, n_jobs):
     """
     Divide the task among workers and get VIF values.
     """
-
-    candidates_chunks = np.array_split(candidates, n_workers)
-    workers = [get_all_vif_worker.remote(ray.put(df), chunk, confounders) for chunk in candidates_chunks]
-    all_res = sum(ray.get(workers), [])
-    return pd.DataFrame(all_res).set_index('candidate')
+    res = Parallel(n_jobs=n_jobs)(delayed(get_vif)(df, confounders+[x]) for x in candidates)
+    return pd.DataFrame(res).set_index('candidate')
 
 
 def compute_cox_coef(df, candidate, targets, confounders, strata):
@@ -79,30 +65,12 @@ def compute_cox_coef(df, candidate, targets, confounders, strata):
     return result
 
 
-@ray.remote
-def process_candidates(df, candidates, targets, confounders, strata):
-    """
-    Process a chunk of candidates using the compute_cox_coef function.
-    """
-    results = []
-    for candidate in candidates:
-        try:
-            results.append(compute_cox_coef(df, candidate, targets, confounders, strata))
-        except:
-            pass
-    return results
-
-
-def get_all_cox_coef(df, candidates, targets, confounders, strata, n_workers):
+def get_all_cox_coef(df, candidates, targets, confounders, strata, n_jobs):
     """
     Compute univariate and multivariate cox coefficients (hazard ratios) for the given candidate in parallel.
     Compute metrics to decide if a candidate is sensitive to confounders.
     """
-    candidate_chunks = np.array_split(candidates, n_workers)
-    df_id = ray.put(df)
-
-    workers = [process_candidates.remote(df_id, chunk, targets, confounders, strata) for chunk in candidate_chunks]
-    results = sum(ray.get(workers), [])
+    results = Parallel(n_jobs=n_jobs)(delayed(compute_cox_coef)(df, x, targets, confounders, strata) for x in candidates)
 
     return pd.concat(results)
 

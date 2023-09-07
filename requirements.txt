@@ -3,9 +3,9 @@ matplotlib
 multipy
 numpy
 pandas
-ray
 scikit-learn
 scipy
 seaborn
 statsmodels
 tqdm
+joblib

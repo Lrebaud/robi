@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 from robi.evaluation_npy import *
 from robi.evaluation_torch import *
 from robi.utils import torch_installed

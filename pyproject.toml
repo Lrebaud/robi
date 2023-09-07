@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "robi"
 description = "ROBI: Robust and Optimized Biomarker Identifier"
-version = "0.0.2"
+version = "0.0.3"
 readme = "README.md"
 license = {text = "Apache License 2.0"}
 authors = [
@@ -20,7 +20,7 @@ dependencies = [
     'lifelines',
     'tqdm',
     'statsmodels',
-    'ray',
+    'joblib',
     'multipy'
 ]
 classifiers = [
