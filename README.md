@@ -2,8 +2,8 @@
 
 <p align="justify">
     <img align="right" width="410px" src="./img/logo.png">
-    ROBI is a selection pipeline that select predictive biomarkers from any set of features.
-    The selection if performed with a robust and adjustable control of the number of false positives as well as a
+    ROBI is a selection pipeline that selects predictive biomarkers from any set of features.
+    The selection is performed with a robust and adjustable control of the number of false positives as well as a
     control for confounders.
     ROBI can control for confounders and already known biomarkers in order to select only new and relevant information.
 </p>
@@ -13,12 +13,12 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7--3.10-blue)](https://www.python.org/downloads/release/python-360/)
 
 
-### Keys features:
+### Key features:
  * :shield: Robust control of the number of false positives by passing permuted datasets through the selection pipeline
-thousands of times (the more, the better). The proportion of false positive can be adjusted.
+thousands of times (the more permuted datasets, the better). The proportion of false positive can be adjusted.
  * :heavy_plus_sign: Increased discovery rate via optimised feature selection.
  * :balance_scale: Reliable predictive power estimation through permutation tests instead of fixed thresholds.
- * :tada: Only select new information via control for confounders and correlation with known biomarkers.
+ * :tada: Selects only new information by controlling for confounders and correlations with known biomarkers.
  * :zap: Fast parallelized implementation that can leverage both CPU and GPU for extensive tests: you can easily
 evaluate tens of thousands of potential biomarkers with millions of permutations in a few minutes.
 
@@ -34,17 +34,64 @@ with its PyTorch implementation. The speed gain is great on CPU, and much greate
 To use the PyTorch implementation, simply install PyTorch (conda is the easiest way), and ROBI will use it automatically.
 To tell ROBI to use the GPU, set `device='cuda'` in the `robi.make_selection` function.
 
+## :bulb: Description
+
+ROBI is Python package created to facilitate the discovery of new biomarkers. More specifically, for any set of
+potential biomarkers (e.g. candidate biomarkers), and for any target (e.g. the metric we want our biomarkers to
+be predictive of, for instance: Overall Survival (OS) or Progression Free Survival (PFS)), ROBI can select the
+biomarkers that  are the most likely to be actual predictors of the target, based on multiple examples
+(multiple patients for instance, if we are trying to predict the OS). This is a challenging task since many
+problems often appear when doing such selection:
+ * **low sample sizes**: the number of samples (patients in our example) to evaluate the biomarkers on is often
+low. This increases the chances of selecting a candidate biomarker that is not actually predictive of the target
+but was just working "by chance" on the specific samples used to evaluate the candidates. Such candidates will be 
+referred as "false positives".
+ * **noisy targets**: nature is complicated and higly chaotic. This make any prediction difficult (espcially when
+predicting the futur like the OS) and most targets will be perturbed by a certain amount of "noise": random fluctuations
+that are impossible to predict. This make the biomarker selection even more challenging.
+ * **target censoring**: it is common when doing survival analysis, to have a "censored" target. For instance,
+the OS of a patient is censored if we know that the patient was alive until a certain point in time, but 
+after, we don't know if the patient died nor when. This type of target further complicate the search for biomarkers
+as they reduce the amount of information in the dataset and introduce more noise in the target.
+ * **multiple testing**: finding a new predictive biomarker can be challenging and it is common to have to try
+numerous potential biomarkers before finding one that is predictive of our target. This introduce a new problem: 
+when testing many candidates biomarkers, the probability of finding one biomarkers 
+
+Biomarkers discovery 
+
+
+Any type of biomarker: it does not matter if the biomarker comes from genomic analysis or from image based radiomics. 
+
 ## :sparkles: Utilisation 
 
+### Usage
 
-### Basic usage
+#### Quick example
+Here is an example that you can run if you don't have any data to test ROBI:
+```python
+import robi
+import numpy as np
+
+df, scores = robi.utils.new_synthetic_dataset(n_samples=200,
+                                              censoring=0.5,
+                                              nb_features=100,
+                                              n_informative=10,
+                                              effective_rank=None,
+                                              noise=0)
+res, scores = robi.make_selection(df,
+                                  candidates=np.arange(df.shape[1]-2).astype('str'),
+                                  targets = {'time': ('time', 'event')})
+res
+```
+
+#### Detailed usage
 
 First, ROBI must be imported:
 ```python
 import robi
 ```
 
-Then, a pandas dataframe need to be defined were each row is a patient, and each column a feature
+Then, a pandas dataframe needs to be defined where each row is a patient, and each column a feature
 (biomarker, outcome, ...), such as:
 ```python
 print(df)
@@ -75,7 +122,7 @@ The x axis is the degree of permissiveness: how strict is the selection. A low p
 selection, reducing the number of false positives, but at the cost of more false negatives (e.g. missed discoveries).
 On the other hand, a high permissiveness means a less strict selection, increasing the number of discoveries but
 at the cost of more false positives.
-The orange line represent the number of selected candidates. The blue line represent the average number of false
+The orange line represents the number of selected candidates. The blue line represents the average number of false
 positives. The blue area is the 95% confidence interval for the number of false positives.
 If the selection is performed on multiple targets, a plot for each target is generated.
 
@@ -125,7 +172,7 @@ corresponding feature is positively correlated to the risk.
 
 ### Control for confounders
 
-If confounders are presents in the dataset, they can be listed in the `confounders` parameter. ROBI will discard any
+If confounders are present in the dataset, they can be listed in the `confounders` parameter. ROBI will discard any
 candidate that is sensitive to these confounders, making sure that any selected biomarker is relevant and worth
 studying further.
 ```python
@@ -154,7 +201,7 @@ listed. Collinearity and multicollinearity will be tested.
 
 ### Censored target
 
-ROBI can handle censored targets (e.g. we know that a patient was alive until a certain date, but then we don't if
+ROBI can handle censored targets (e.g. we know that a patient was alive until a certain date, but then we don't know if
 he died or when). For instance, to use the Overall Survival (OS), one must specify:
 ```python
 selection, scores = robi.make_selection(df,
@@ -181,8 +228,8 @@ selection, scores = robi.make_selection(df,
 The key of the dictionary is the name of the target. The first element of the tuple is the time, the second says if
 the event happened or not.
 
-When giving multiple targets, some could be censored while other might be uncensored. Give them like in the following
-example:
+When giving multiple targets, some could be censored while others might be uncensored. Provide them as shown in the
+following example:
 ```python
 selection, scores = robi.make_selection(df,
                                         candidates,
