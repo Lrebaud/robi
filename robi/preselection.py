@@ -2,14 +2,10 @@ import numpy as np
 import pandas as pd
 from lifelines import CoxPHFitter
 from lifelines.statistics import proportional_hazard_test
-from matplotlib import pyplot as plt
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import scipy.spatial.distance as ssd
 from scipy.cluster.hierarchy import linkage, leaves_list, optimal_leaf_ordering
 from joblib import Parallel, delayed
-
-import warnings
-warnings.filterwarnings("error")
 
 def get_vif(df, cov):
     """
