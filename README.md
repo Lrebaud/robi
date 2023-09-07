@@ -15,7 +15,7 @@
 
 ### Key features:
  * :shield: Robust control of the number of false positives by passing permuted datasets through the selection pipeline
-thousands of times (the more permuted datasets, the better). The proportion of false positive can be adjusted.
+thousands of times. The proportion of false positive can be adjusted.
  * :heavy_plus_sign: Increased discovery rate via optimised feature selection.
  * :balance_scale: Reliable predictive power estimation through permutation tests instead of fixed thresholds.
  * :tada: Selects only new information by controlling for confounders and correlations with known biomarkers.
@@ -64,9 +64,8 @@ Any type of biomarker: it does not matter if the biomarker comes from genomic an
 
 ## :sparkles: Utilisation 
 
-### Usage
 
-#### Quick example
+### Quick example
 Here is an example that you can run if you don't have any data to test ROBI:
 ```python
 import robi
@@ -84,7 +83,7 @@ res, scores = robi.make_selection(df,
 res
 ```
 
-#### Detailed usage
+### Detailed usage
 
 First, ROBI must be imported:
 ```python

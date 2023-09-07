@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import itertools
 
 try:
     import torch
@@ -52,7 +53,7 @@ def compute_univariate_score_of_torch(df, target_columns, chunk, biom_values):
         univ_scores_target['C_index'] = features_cindex.cpu().numpy()
         univ_scores_target['target'] = target
         univ_scores.append(univ_scores_target)
-    return pd.concat(univ_scores)
+    return univ_scores
 
 
 def compute_univariate_score_torch(df, candidates, target_columns, device):
@@ -64,12 +65,12 @@ def compute_univariate_score_torch(df, candidates, target_columns, device):
         chunks = [candidates]
 
     all_univ_scores = []
-    for chunk in chunks:  # tqdm(chunks, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}'):
+    for chunk in chunks:
         biom_values = torch.as_tensor(df[chunk].values, device=device, dtype=torch.float)
         univ_scores = compute_univariate_score_of_torch(df, target_columns, chunk, biom_values)
-        torch.cuda.empty_cache()
         all_univ_scores.append(univ_scores)
-    return pd.concat(all_univ_scores)
+    torch.cuda.empty_cache()
+    return pd.concat(itertools.chain.from_iterable(all_univ_scores))
 
 
 def compute_pvals_target_torch(scores, random_scores, device):

@@ -122,7 +122,12 @@ def make_selection(df,
     if len(confounders) > 0:
         df = df[df[confounders].isna().sum(axis=1) == 0]
 
-    df = normalize_columns(df, candidates + confounders)
+    if strata is None:
+        to_norm = candidates + confounders
+    else:
+        to_norm = list(set(candidates + confounders)-set(strata))
+    df = normalize_columns(df, to_norm)
+
     if verbose and len(confounders) > 0:
         check_confounders(df, confounders, targets, strata)
 

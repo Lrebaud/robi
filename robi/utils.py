@@ -15,7 +15,7 @@ def check_n_random(scores, targets, n_random):
     """
 
     # Calculate the minimum p-value across all targets
-    min_pval = scores['p_value'].min()
+    min_pval = np.min(scores['p_value'])
     n_sup = int(min_pval * n_random)
 
     # Check if the number of superior random features is less than 200
@@ -35,8 +35,19 @@ def normalize_columns(df, columns):
     Normalize (z-score) specified columns in the dataframe.
     """
 
-    df.loc[:, columns] = (df[columns] - df[columns].mean()) / df[columns].std()
-    return df
+    # # Check if the specified columns exist in the dataframe
+    # if not all(col in df.columns for col in columns):
+    #     raise ValueError("One or more specified columns do not exist in the dataframe.")
+    #
+    # # Create a new dataframe with the normalized columns
+    normalized_df = df.copy()
+    #
+    # # Calculate the z-score for each column
+    # std = df[columns].std()
+    # std[(std == 0) | (np.isnan(std))] = 1
+    normalized_df.loc[:, columns] = (df[columns] - df[columns].mean()) / df[columns].std()
+
+    return normalized_df
 
 
 def check_proportional_hazard_for_target(df, target, targets, confounders, strata):

@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import itertools
 
 def get_comparable_pairs_npy(time, event):
     y = time
@@ -43,7 +44,7 @@ def compute_univariate_score_of_npy(df, target_columns, biom_values, chunk):
         univ_scores_target['C_index'] = features_cindex
         univ_scores_target['target'] = target
         univ_scores.append(univ_scores_target)
-    return pd.concat(univ_scores)
+    return univ_scores
 
 
 def compute_univariate_score_npy(df, candidates, target_columns):
@@ -59,7 +60,7 @@ def compute_univariate_score_npy(df, candidates, target_columns):
         biom_values = df[chunk].values
         univ_scores = compute_univariate_score_of_npy(df, target_columns, biom_values, chunk)
         all_univ_scores.append(univ_scores)
-    return pd.concat(all_univ_scores)
+    return pd.concat(itertools.chain.from_iterable(all_univ_scores))
 
 
 def compute_pvals_target_npy(scores, random_scores):

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from lifelines import CoxPHFitter
 from lifelines.statistics import proportional_hazard_test
+from matplotlib import pyplot as plt
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import scipy.spatial.distance as ssd
 from scipy.cluster.hierarchy import linkage, leaves_list, optimal_leaf_ordering
@@ -151,7 +152,7 @@ def primary_selection(df, candidates, confounders, strata, confound_check_corr, 
                                                                method='spearman').abs()
         candidates = correlation_with_confounders[correlation_with_confounders < 0.5].index.tolist()
         if verbose:
-            print(f"{len(candidates)} candidates remain after dropping candidates correlated with confounders.")
+            print(f"{len(candidates)} candidates remain after dropping candidates correlated with known.")
 
     if len(confound_check_corr) > 0:
         # Check multicollinearity with confounders
@@ -159,11 +160,12 @@ def primary_selection(df, candidates, confounders, strata, confound_check_corr, 
         candidates = all_vif[all_vif['vif'] < 5].index.tolist()
         if verbose:
             print(
-                f"{len(candidates)} candidates remain after dropping candidates with high multicollinearity with confounders.")
+                f"{len(candidates)} candidates remain after dropping candidates with high multicollinearity with known.")
 
     if len(confounders) > 0:
         # Check for confoundings factor
         multivariate_eval = get_all_cox_coef(df, candidates, targets, confounders, strata, n_workers)
+
         candidates = multivariate_eval[
             multivariate_eval[[x for x in multivariate_eval.columns if '_diffPerct_HRnorm' in x]].abs().max(
                 axis=1) < 10].index.tolist()
