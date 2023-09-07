@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-def check_n_random(pvals, targets, n_random):
+def check_n_random(pvals, n_random, use_torch):
     """
     Check if the number of random features is sufficient based on the minimum p-value.
     The number of random features that are better than the candidates should be high enough
@@ -15,8 +15,11 @@ def check_n_random(pvals, targets, n_random):
     """
 
     # Calculate the minimum p-value across all
+    if use_torch:
+        min_pval = np.min([pvals[t].min().numpy()[()] for t in pvals])
+    else:
+        min_pval = np.min([np.min(pvals[t]) for t in pvals])
 
-    min_pval = np.min([pvals[t].min().numpy()[()] for t in pvals])
     n_sup = int(min_pval * n_random)
 
     # Check if the number of superior random features is less than 200

@@ -1,6 +1,4 @@
 import numpy as np
-import pandas as pd
-import itertools
 
 try:
     import torch
@@ -12,12 +10,12 @@ def get_comparable_pairs_torch(time, event):
     y = torch.from_numpy(time)
     e = torch.from_numpy(event)
 
-    grid_x, grid_y = torch.meshgrid(y, y)
+    grid_x, grid_y = torch.meshgrid(y, y, indexing="ij")
     grid_x = grid_x.tril()
     grid_y = grid_y.tril()
     diff_truth = grid_x - grid_y
 
-    grid_ex, grid_ey = torch.meshgrid(e, e)
+    grid_ex, grid_ey = torch.meshgrid(e, e, indexing="ij")
     valid_pairs = ((diff_truth < 0) & (grid_ex == 1))
     res1 = torch.stack(torch.where(valid_pairs)).T
 
@@ -32,12 +30,10 @@ def get_comparable_pairs_torch(time, event):
 def cindex_by_pair_torch(v_high, v_low):
     eval_comparable = (v_high < v_low).float()
     eval_non_comparable = (v_high == v_low).float()
-    return (eval_comparable + (eval_non_comparable * 0.5))
+    return eval_comparable + (eval_non_comparable * 0.5)
 
 
 def compute_univariate_score_of_torch(pairs, biom_values):
-    univ_scores = []
-
     biom_values_low = biom_values[pairs[:, 0]]
     biom_values_high = biom_values[pairs[:, 1]]
 
@@ -51,13 +47,12 @@ def compute_univariate_score_of_torch(pairs, biom_values):
 def compute_univariate_score_torch(df, candidates, target_columns, biom_values):
     candidates_id = np.arange(len(candidates))
 
-    max_chunk_size = 1e4 #1e4
+    max_chunk_size = 1e4
     if len(candidates_id) > max_chunk_size:
         n_chunks = len(candidates_id) / max_chunk_size
         chunks = np.array_split(candidates_id, n_chunks)
     else:
         chunks = [candidates_id]
-
 
     all_scores_by_target = {}
     for target in target_columns:
@@ -70,7 +65,6 @@ def compute_univariate_score_torch(df, candidates, target_columns, biom_values):
         all_scores_by_target[target] = torch.cat(univ_scores)
 
     return all_scores_by_target
-
 
 
 def compute_pvals_target_torch(scores, random_scores):
@@ -94,17 +88,9 @@ def compute_pvals_target_torch(scores, random_scores):
     return all_pvals.cpu()
 
 
-def compute_pvals_torch(scores,  random_scores, device):
+def compute_pvals_torch(scores, random_scores, device):
     pvals = {}
     for target in scores:
-        # mask_target = scores['target'] == target
-        # random_scores_target = random_scores[random_scores['target'] == target]
-        #
-        # scores.loc[mask_target, 'p_value'] = compute_pvals_target_torch(scores.loc[mask_target, 'C_index'].values,
-        #                                                                 random_scores[target],
-        #                                                                 device)
         pvals[target] = compute_pvals_target_torch(scores[target], random_scores[target])
-
         torch.cuda.empty_cache()
     return pvals
-

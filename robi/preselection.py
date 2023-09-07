@@ -8,6 +8,8 @@ import scipy.spatial.distance as ssd
 from scipy.cluster.hierarchy import linkage, leaves_list, optimal_leaf_ordering
 from joblib import Parallel, delayed
 
+import warnings
+warnings.filterwarnings("error")
 
 def get_vif(df, cov):
     """
@@ -68,7 +70,7 @@ def compute_cox_coef(df, candidate, targets, confounders, strata):
 def compute_cox_coef_safe(df, candidate, targets, confounders, strata):
     try:
         return compute_cox_coef(df, candidate, targets, confounders, strata)
-    except:
+    except Exception as e:
         return None
 
 
@@ -78,7 +80,6 @@ def get_all_cox_coef(df, candidates, targets, confounders, strata, n_jobs):
     Compute metrics to decide if a candidate is sensitive to confounders.
     """
     results = Parallel(n_jobs=n_jobs)(delayed(compute_cox_coef_safe)(df, x, targets, confounders, strata) for x in candidates)
-    results = [x for x in results if x != None]
     return pd.concat(results)
 
 

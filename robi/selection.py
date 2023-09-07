@@ -63,10 +63,9 @@ def get_permissiveness_effect(pval, pvals_permut, corr_clusters, targets, n_work
     nfp_by_permissiveness = get_nfp_by_permissiveness(pvals_permut, corr_clusters, list_targets, n_workers)
     return sel_by_permissiveness, nfp_by_permissiveness
 
+
 def plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets):
-
     for target in targets:
-
         sns.lineplot(sel_by_permissiveness.loc[target], x='permissiveness', y='n_selected',
                      label='Number of\nselected candidates', color='#ec6602')
         sns.lineplot(nfp_by_permissiveness.loc[target], x='permissiveness', y='n_FP',
@@ -75,6 +74,7 @@ def plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, tar
         plt.ylabel('')
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.show()
+
 
 def make_selection(df,
                    candidates,
@@ -102,7 +102,7 @@ def make_selection(df,
     if isinstance(strata, list):
         if len(strata) == 0:
             strata = None
-    confounders = list(set(confounders+known))
+    confounders = list(set(confounders + known))
 
     if isinstance(candidates, np.ndarray):
         candidates = candidates.tolist()
@@ -116,7 +116,7 @@ def make_selection(df,
     if strata is None:
         to_norm = candidates + confounders
     else:
-        to_norm = list(set(candidates + confounders)-set(strata))
+        to_norm = list(set(candidates + confounders) - set(strata))
     df = normalize_columns(df, to_norm)
 
     if verbose and len(confounders) > 0:
@@ -137,10 +137,10 @@ def make_selection(df,
     scores, pvals = univariate_evaluation(df, candidates, targets, device, scores_random, use_torch)
 
     if verbose:
-        check_n_random(pvals, targets, n_uni_pval)
+        check_n_random(pvals, n_uni_pval, use_torch)
 
-    pvals_permut = robi.evaluation.get_permuted_scores(df, candidates, scores_random, targets, device, n_fp_estimate, verbose, use_torch)
-
+    pvals_permut = robi.evaluation.get_permuted_scores(df, candidates, scores_random, targets, device, n_fp_estimate,
+                                                       verbose, use_torch)
 
     sel_by_permissiveness, nfp_by_permissiveness = get_permissiveness_effect(pvals, pvals_permut,
                                                                              corr_clusters, targets,
@@ -162,7 +162,6 @@ def make_selection(df,
 
     sel_by_permissiveness = sel_by_permissiveness[['n_selected', 'n_FP', 'P_only_FP', 'selected']]
 
-
     scores_col = []
     pval_col = []
     target_col = []
@@ -177,7 +176,7 @@ def make_selection(df,
         p = p.tolist()
         scores_col += s
         pval_col += p
-        target_col += [target]*len(s)
+        target_col += [target] * len(s)
         cand_col += candidates
 
     scores = pd.DataFrame(data={
@@ -191,5 +190,5 @@ def make_selection(df,
     candidates = np.array(candidates)
     sel_by_permissiveness['selected'] = [candidates[x] for x in sel_by_permissiveness['selected']]
 
-
+    torch.cuda.empty_cache()
     return sel_by_permissiveness, scores
