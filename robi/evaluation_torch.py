@@ -3,8 +3,7 @@ import numpy as np
 try:
     import torch
 except:
-    print('Could not load PyTorch. Consider installing or fixing it for substantial speed gains. Using Numpy instead. ')
-
+    pass
 
 def get_comparable_pairs_torch(time, event):
     y = torch.from_numpy(time)
