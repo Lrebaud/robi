@@ -34,34 +34,6 @@ with its PyTorch implementation. The speed gain is great on CPU, and much greate
 To use the PyTorch implementation, simply install PyTorch (conda is the easiest way), and ROBI will use it automatically.
 To tell ROBI to use the GPU, set `device='cuda'` in the `robi.make_selection` function.
 
-## :bulb: Description
-
-ROBI is Python package created to facilitate the discovery of new biomarkers. More specifically, for any set of
-potential biomarkers (e.g. candidate biomarkers), and for any target (e.g. the metric we want our biomarkers to
-be predictive of, for instance: Overall Survival (OS) or Progression Free Survival (PFS)), ROBI can select the
-biomarkers that  are the most likely to be actual predictors of the target, based on multiple examples
-(multiple patients for instance, if we are trying to predict the OS). This is a challenging task since many
-problems often appear when doing such selection:
- * **low sample sizes**: the number of samples (patients in our example) to evaluate the biomarkers on is often
-low. This increases the chances of selecting a candidate biomarker that is not actually predictive of the target
-but was just working "by chance" on the specific samples used to evaluate the candidates. Such candidates will be 
-referred as "false positives".
- * **noisy targets**: nature is complicated and higly chaotic. This make any prediction difficult (espcially when
-predicting the futur like the OS) and most targets will be perturbed by a certain amount of "noise": random fluctuations
-that are impossible to predict. This make the biomarker selection even more challenging.
- * **target censoring**: it is common when doing survival analysis, to have a "censored" target. For instance,
-the OS of a patient is censored if we know that the patient was alive until a certain point in time, but 
-after, we don't know if the patient died nor when. This type of target further complicate the search for biomarkers
-as they reduce the amount of information in the dataset and introduce more noise in the target.
- * **multiple testing**: finding a new predictive biomarker can be challenging and it is common to have to try
-numerous potential biomarkers before finding one that is predictive of our target. This introduce a new problem: 
-when testing many candidates biomarkers, the probability of finding one biomarkers 
-
-Biomarkers discovery 
-
-
-Any type of biomarker: it does not matter if the biomarker comes from genomic analysis or from image based radiomics. 
-
 ## :sparkles: Utilisation 
 
 
@@ -237,19 +209,6 @@ selection, scores = robi.make_selection(df,
                                             'censored_target': ('censored_target_time', 'censored_target_happened')
                                         })
 ```
-
-### other parameters
-
-## :memo: Examples
-You can find example notebooks in the `notebooks` folder of this repository.
-
-radiomic DLBCL
-TCGA
-synthetic data
-
-
-## :mag: Pipeline diagram
-
 
 ## :technologist: Author
 
