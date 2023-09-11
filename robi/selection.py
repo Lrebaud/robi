@@ -21,6 +21,7 @@ def _make_selection(df,
                     n_fp_estimate=1000,
                     verbose=True,
                     n_jobs=1,
+                    opti_cluster=True,
                     device="cpu"):
     if verbose:
         print('Selection started...')
@@ -86,7 +87,7 @@ def _make_selection(df,
     # run the selection on both real and permuted candidates
     sel_by_permissiveness, nfp_by_permissiveness = get_permissiveness_effect(pvals, pvals_permut,
                                                                              corr_clusters, targets,
-                                                                             n_jobs)
+                                                                             opti_cluster, n_jobs)
     if verbose:
         plot_permissiveness_effect(sel_by_permissiveness, nfp_by_permissiveness, targets)
 
@@ -111,6 +112,7 @@ def make_selection(df,
                    n_fp_estimate=1000,
                    verbose=True,
                    n_jobs=1,
+                   opti_cluster=True,
                    device="cpu"):
     sel_by_permissiveness, scores, use_torch = _make_selection(**locals())
 

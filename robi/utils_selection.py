@@ -5,6 +5,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 
+
 def get_best_candidates_per_cluster(scores, clusters):
     representative = []
     for cluster in clusters:
@@ -16,13 +17,30 @@ def get_best_candidates_per_cluster(scores, clusters):
     return np.array(representative)
 
 
-def get_sel_by_permissiveness(pvals, corr_clusters, targets):
+def get_random_candidates_per_cluster(clusters):
+    representative = []
+    for cluster in clusters:
+        if len(cluster) > 1:
+            representative.append(cluster[np.random.choice(np.arange(len(cluster)))])
+        else:
+            representative.append(cluster[0])
+    return np.array(representative)
+
+
+def get_candidates_per_cluster(scores, clusters, opti_cluster):
+    if opti_cluster:
+        return get_best_candidates_per_cluster(scores, clusters)
+    else:
+        return get_random_candidates_per_cluster(clusters)
+
+
+def get_sel_by_permissiveness(pvals, corr_clusters, targets, opti_cluster):
     all_n_sel = []
 
     for target in targets:
         pvals_target = pvals[target]
 
-        candidates = get_best_candidates_per_cluster(pvals_target, corr_clusters)
+        candidates = get_candidates_per_cluster(pvals_target, corr_clusters, opti_cluster)
         pvals_target = pvals_target[candidates]
 
         for permissiveness in np.arange(0.01, 1.01, 0.01).round(2):
@@ -36,9 +54,9 @@ def get_sel_by_permissiveness(pvals, corr_clusters, targets):
     return pd.DataFrame(all_n_sel).set_index(['target', 'permissiveness'])
 
 
-def get_nfp_by_permissiveness(pvals_permut, corr_clusters, targets, n_jobs):
+def get_nfp_by_permissiveness(pvals_permut, corr_clusters, targets, n_jobs, opti_cluster):
     res = Parallel(n_jobs=n_jobs)(delayed(get_sel_by_permissiveness)
-                                  (s, corr_clusters, targets)
+                                  (s, corr_clusters, targets, opti_cluster)
                                   for s in pvals_permut)
     res = pd.concat(res)
     res = res.reset_index()
@@ -48,10 +66,10 @@ def get_nfp_by_permissiveness(pvals_permut, corr_clusters, targets, n_jobs):
     return res
 
 
-def get_permissiveness_effect(pval, pvals_permut, corr_clusters, targets, n_workers):
+def get_permissiveness_effect(pval, pvals_permut, corr_clusters, targets, opti_cluster, n_workers):
     list_targets = list(targets.keys())
-    sel_by_permissiveness = get_sel_by_permissiveness(pval, corr_clusters, list_targets)
-    nfp_by_permissiveness = get_nfp_by_permissiveness(pvals_permut, corr_clusters, list_targets, n_workers)
+    sel_by_permissiveness = get_sel_by_permissiveness(pval, corr_clusters, list_targets, opti_cluster)
+    nfp_by_permissiveness = get_nfp_by_permissiveness(pvals_permut, corr_clusters, list_targets, n_workers, opti_cluster)
     return sel_by_permissiveness, nfp_by_permissiveness
 
 
