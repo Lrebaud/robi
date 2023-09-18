@@ -56,5 +56,7 @@ def primary_selection(df, candidates, confounders, strata, confound_check_corr, 
 
     # Group candidates into clusters of similar information based on their correlations
     corr_clusters = get_clusters(candidates, candidates_correlations, max_corr)
+    if verbose:
+        print(f'{len(corr_clusters)} clusters created.')
 
     return candidates, corr_clusters, candidates_correlations
